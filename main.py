@@ -1,7 +1,8 @@
 import telebot
 from telebot.util import quick_markup
-import json, sqlite3, random
-
+import json, sqlite3, random, os
+from dotenv import load_dotenv
+load_dotenv()
 def get_random_word():
     conn = sqlite3.connect("words.db")
     cur = conn.cursor()
@@ -19,9 +20,14 @@ def check_admin(call):
 
 database = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = database.cursor()
-API_TOKEN = ''
 
-bot = telebot.TeleBot(API_TOKEN)
+yeni_soz = {
+            "Sözə bax 📝": {"callback_data": "show_word"},
+            "Fikrimi dəyişdim ❌": {"callback_data": "change_player"},
+            "Sözü dəyiş 🔄": {"callback_data": "change_word"}
+           }
+
+bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 
 
 @bot.message_handler(commands=['start'])
@@ -40,13 +46,11 @@ def yoxla(message):
     cursor.execute("SELECT * FROM cro WHERE chatID = ?", (message.chat.id,))
     res = cursor.fetchone()
     if message.text.lower()==res[1].lower() and message.from_user.id != res[2]:
-        bot.send_message(message.chat.id, f"{message.from_user.first_name} {res[1]} sozunu tapdi!")
+        bot.send_message(message.chat.id, f"🎉 <b>{message.from_user.first_name}</b> sözü tapdı! <b>{res[1]}</b>", parse_mode="HTML")
         cursor.execute("UPDATE cro SET currentPlayer=?, currentWord=?", (message.from_user.id, get_random_word()))
         database.commit()
-        markup = quick_markup({
-            "Sozu gor": {"callback_data": "show_word"}
-        })
-        bot.send_message(message.chat.id, f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a> yeni sozu izah edir!', reply_markup=markup, parse_mode="HTML")
+        markup = quick_markup(yeni_soz)
+        bot.send_message(message.chat.id, f'<a href="tg://user?id={message.from_user.id}">🎤 {message.from_user.first_name}</a> yeni aparıcıdır! İzah edir:', reply_markup=markup, parse_mode="HTML")
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -118,19 +122,42 @@ def reply(call):
                 rndPlayer = random.randrange(0, len(players))
                 cursor.execute("UPDATE cro SET currentPlayer=?, currentWord=?", (players[rndPlayer], get_random_word()))
                 database.commit()
-                markup = quick_markup({
-                    "Sozu gor": {"callback_data": "show_word"}
-                })
+                markup = quick_markup(yeni_soz)
                 bot.edit_message_text(f"Oyun basladi, {playerNames[rndPlayer]} sozu izah edir.", call.message.chat.id, call.message.message_id, reply_markup=markup)
             else: bot.answer_callback_query(call.id, "Oyuna baslamaq ucun en azi 2 nefer olmalidir.", show_alert=True)
         else: bot.answer_callback_query(call.id, "Admin deyilsen qaqas", show_alert=True)
+    elif call.data == "change_player":
+        cursor.execute("SELECT players, playerNames, currentPlayer FROM cro WHERE chatID=?", (call.message.chat.id,))
+        players, playerNames, currentPlayer = cursor.fetchone()
+        players, playerNames = json.loads(players), json.loads(playerNames)
+        if call.from_user.id==currentPlayer:
+            ndx = players.index(currentPlayer)
+            del players[ndx]
+            del playerNames[ndx]
+            new_player= random.randrange(0, len(players))
+            cursor.execute("UPDATE cro SET currentPlayer=?, currentWord=?", (players[new_player], get_random_word()))
+            database.commit()
+            markup = quick_markup(yeni_soz)
+            bot.send_message(call.message.chat.id, f'<a href="tg://user?id={players[new_player]}">🎤 {playerNames[new_player]}</a> yeni aparıcıdır! İzah edir:', reply_markup=markup, parse_mode="HTML")
+        else:
+            bot.answer_callback_query(call.id, "Siz aparıcı deyilsiniz!", show_alert=True)
     elif call.data == "show_word":
         cursor.execute("SELECT currentWord, currentPlayer FROM cro WHERE chatID=?", (call.message.chat.id,))
         currentWord, currentPlayer = cursor.fetchone()
         if currentPlayer==call.from_user.id:
             bot.answer_callback_query(call.id, currentWord, show_alert=True)
         else:
-            bot.answer_callback_query(call.id, "Sizin siraniz deyil", show_alert=True)
+            bot.answer_callback_query(call.id, "Siz aparıcı deyilsiniz və sözə baxa bilməzsiniz/dəyişə bilməzsiniz", show_alert=True)
+    elif call.data == "change_word":
+        cursor.execute("SELECT currentPlayer FROM cro WHERE chatID=?", (call.message.chat.id,))
+        currentPlayer = cursor.fetchone()[0]
+        if currentPlayer==call.from_user.id:
+            new_word = get_random_word()
+            cursor.execute("UPDATE cro SET currentWord=? WHERE chatID=?",(new_word, call.message.chat.id))
+            database.commit()
+            bot.answer_callback_query(call.id, new_word, show_alert=True)
+        else:
+            bot.answer_callback_query(call.id, "Siz aparıcı deyilsiniz və sözə baxa bilməzsiniz/dəyişə bilməzsiniz", show_alert=True)
 
 
 bot.infinity_polling()
