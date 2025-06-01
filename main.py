@@ -1,6 +1,6 @@
 import telebot
 from telebot.util import quick_markup
-import json, sqlite3, random, os
+import json, sqlite3, random, os, leaderboard
 from dotenv import load_dotenv
 load_dotenv()
 def get_random_word():
@@ -39,6 +39,15 @@ def send_welcome(message):
     else:
         bot.send_message(message.chat.id, "Bunu isletmek ucun qrupda olmalisan")
 
+@bot.message_handler(commands=["leaderboard"])
+def send_lb(message):
+    lb = leaderboard.get_leaderboard(message.chat.id)
+    if lb=={}:
+        bot.send_message(message.chat.id, "Sıralama mövcud deyil.")
+    else: 
+        lb = "\n".join(f"<b>{i[1]['username']}</b>: {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[:10])
+        lb = "<b><i>Sıralama:</i></b>\n\n"+lb
+        bot.send_message(message.chat.id, lb, parse_mode="HTML")
 
 @bot.message_handler(content_types=['text'])
 def yoxla(message):
@@ -47,6 +56,7 @@ def yoxla(message):
     if message.text.lower()==res[1].lower() and message.from_user.id != res[2]:
         bot.send_message(message.chat.id, f"🎉 <b>{message.from_user.first_name}</b> sözü tapdı! <b>{res[1]}</b>", parse_mode="HTML")
         cursor.execute("UPDATE cro SET currentPlayer=?, currentWord=?", (message.from_user.id, get_random_word()))
+        leaderboard.add_point(message.chat.id, message.from_user.id, message.from_user.first_name)
         database.commit()
         markup = quick_markup(yeni_soz)
         bot.send_message(message.chat.id, f'<a href="tg://user?id={message.from_user.id}">🎤 {message.from_user.first_name}</a> yeni aparıcıdır! İzah edir:', reply_markup=markup, parse_mode="HTML")
@@ -137,7 +147,7 @@ def reply(call):
             markup = quick_markup(yeni_soz)
             bot.send_message(call.message.chat.id, f'<a href="tg://user?id={players[new_player]}">🎤 {playerNames[new_player]}</a> yeni aparıcıdır! İzah edir:', reply_markup=markup, parse_mode="HTML")
         else:
-            bot.answer_callback_query(call.id, "Siz aparıcı deyilsiniz!", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ Yalnız hazırkı aparıcı imtina edə bilər!", show_alert=True)
     elif call.data == "show_word":
         cursor.execute("SELECT currentWord, currentPlayer FROM cro WHERE chatID=?", (call.message.chat.id,))
         currentWord, currentPlayer = cursor.fetchone()
