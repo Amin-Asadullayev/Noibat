@@ -15,7 +15,6 @@ def check_admin(call):
     chat_id = call.message.chat.id
     user_id = call.from_user.id
     chat_member = bot.get_chat_member(chat_id, user_id)
-    print(chat_member.status)
     return chat_member.status in ['administrator', 'creator', 'owner']
 
 database = sqlite3.connect("bot.db", check_same_thread=False)
@@ -58,10 +57,8 @@ def reply(call):
     if call.data == "crocodile":
         cursor.execute(f"SELECT chatID FROM cro WHERE chatID=={call.message.chat.id}")
         if not cursor.fetchall(): 
-            print("Ok")
             cursor.execute(f"INSERT INTO cro VALUES ({call.message.chat.id}, '', 0, '[]', '[]')")
         else: 
-            print("Yok")
             cursor.execute(f"""UPDATE cro 
                              SET currentWord = '',
                              currentPlayer = 0,
