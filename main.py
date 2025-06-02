@@ -57,7 +57,7 @@ def send_lb(message):
         n = 0
         lb_sent = "\n".join(f"{number_to_emoji((n:=n+1))} <b>{i[1]['username']}</b> - {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[:10])
         lb_sent = "<b>🏆 Sıralama:</b>\n\n"+lb_sent
-        if (len(lb.keys())<10):
+        if (len(lb.keys())>10):
             bot.send_message(message.chat.id, lb_sent, parse_mode="HTML", reply_markup=quick_markup({
                 "Növbəti səhifə ➡️": {"callback_data": "pageswap_1"}
             }))
@@ -186,14 +186,16 @@ def reply(call):
         n = (page*10)
         lb_sent = "\n".join(f"{number_to_emoji((n:=n+1))} <b>{i[1]['username']}</b> - {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[page*10:(page+1)*10])
         lb_sent = "<b>🏆 Sıralama:</b>\n\n"+lb_sent
-        if (len(lb.keys())>10*(n+1)):
+        if (len(lb.keys())>10*(page)):
             bot.send_message(call.message.chat.id, lb_sent, parse_mode="HTML", reply_markup=quick_markup({
                 "⬅️ Əvvəlki səhifə": {"callback_data": f"pageswap_{page-1}"},
+                "Növbəti səhifə ➡️": {"callback_data": f"pageswap_{page+1}"}
+            } if page>0 else {
                 "Növbəti səhifə ➡️": {"callback_data": f"pageswap_{page+1}"}
             }))
         else:
             bot.send_message(call.message.chat.id, lb_sent, parse_mode="HTML", reply_markup=quick_markup({
                 "⬅️ Əvvəlki səhifə": {"callback_data": f"pageswap_{page-1}"}
-                }))
+                }) if page>0 else None)
 
 bot.infinity_polling()
