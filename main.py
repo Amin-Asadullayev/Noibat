@@ -3,6 +3,16 @@ from telebot.util import quick_markup
 import json, sqlite3, random, os, leaderboard
 from dotenv import load_dotenv
 load_dotenv()
+
+def number_to_emoji(num: int) -> str:
+    if num in [1,2,3]: return ["🥇", "🥈", "🥉"][num-1]
+    num_emoji = {0: "0️⃣", 1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣", 9: "9️⃣"}
+    result = ""
+    while num>0:
+        result = num_emoji[num%10] + result
+        num//=10
+    return result
+
 def get_random_word():
     conn = sqlite3.connect("words.db")
     cur = conn.cursor()
@@ -28,7 +38,6 @@ yeni_soz = {
 
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 
-
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     if message.chat.type=="group":
@@ -45,9 +54,15 @@ def send_lb(message):
     if lb=={}:
         bot.send_message(message.chat.id, "Sıralama mövcud deyil.")
     else: 
-        lb = "\n".join(f"<b>{i[1]['username']}</b>: {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[:10])
-        lb = "<b><i>Sıralama:</i></b>\n\n"+lb
-        bot.send_message(message.chat.id, lb, parse_mode="HTML")
+        n = 0
+        lb_sent = "\n".join(f"{number_to_emoji((n:=n+1))} <b>{i[1]['username']}</b> - {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[:10])
+        lb_sent = "<b>🏆 Sıralama:</b>\n\n"+lb_sent
+        if (len(lb.keys())>10):
+            bot.send_message(message.chat.id, lb_sent, parse_mode="HTML", reply_markup=quick_markup({
+                "Növbəti səhifə ➡️": {"callback_data": "pageswap_0"}
+            }))
+        else:
+            bot.send_message(message.chat.id, lb_sent, parse_mode="HTML")
 
 @bot.message_handler(content_types=['text'])
 def yoxla(message):
