@@ -184,7 +184,7 @@ def reply(call):
         bot.send_message(call.message.chat.id, page)
         lb = leaderboard.get_leaderboard(call.message.chat.id)
         n = (page*10)
-        lb_sent = "\n".join(f"{number_to_emoji((n:=n+1))} <b>{i[1]['username']}</b> - {i[1]["point"]}" for i in sorted(lb.items(), key=lambda item: item[1]["point"], reverse=True)[page*10:(page+1)*10])
+        lb_sent = "\n".join( f"{number_to_emoji((n:=n+1))} <b>{i[1]['username']}</b> - {i[1]['point']}" for i in sorted(lb.items(), key=lambda item: item[1]['point'], reverse=True)[page*10:(page+1)*10])
         lb_sent = "<b>🏆 Sıralama:</b>\n\n"+lb_sent
         if (len(lb.keys())>10*(page)):
             bot.send_message(call.message.chat.id, lb_sent, parse_mode="HTML", reply_markup=quick_markup({
