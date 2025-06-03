@@ -35,7 +35,11 @@ yeni_soz = {
             "Fikrimi dəyişdim ❌": {"callback_data": "change_player"},
             "Sözü dəyiş 🔄": {"callback_data": "change_word"}
            }
-
+user_options = {
+            "Qoşul": {"callback_data": "cro_join"},
+            "Tərk et": {"callback_data": "cro_leave"},
+            "Başlat": {"callback_data": "cro_start"}
+            }
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 
 @bot.message_handler(commands=['start'])
@@ -44,9 +48,9 @@ def send_welcome(message):
         markup = quick_markup({
             "Crocodile": {"callback_data": "crocodile"}
         })
-        bot.send_message(message.chat.id, "Oynamaq istediyiniz oyunu secin", reply_markup=markup)
+        bot.send_message(message.chat.id, "Oynamaq istədiyiniz oyunu seçin:", reply_markup=markup)
     else:
-        bot.send_message(message.chat.id, "Bunu isletmek ucun qrupda olmalisan")
+        bot.send_message(message.chat.id, "Botdan istifadə etmək üçün qrupda olmalısınız")
 
 @bot.message_handler(commands=["leaderboard"])
 def send_lb(message):
@@ -65,6 +69,7 @@ def send_lb(message):
 
 @bot.message_handler(content_types=['text'])
 def yoxla(message):
+    print("ok")
     cursor.execute("SELECT * FROM cro WHERE chatID = ?", (message.chat.id,))
     res = cursor.fetchone()
     if message.text.lower()==res[1].lower() and message.from_user.id != res[2]:
@@ -90,12 +95,8 @@ def reply(call):
                              playerNames = '[]'
                              WHERE chatID={call.message.chat.id}""")
         database.commit()
-        markup = quick_markup({
-            "Qosul": {"callback_data": "cro_join"},
-            "Cix": {"callback_data": "cro_leave"},
-            "Baslat": {"callback_data": "cro_start"}
-        })
-        bot.edit_message_text("""Oyun bir azdan baslayacaq.\nQosulanlar:""", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        markup = quick_markup(user_options)
+        bot.edit_message_text("""Oyun bir az sonra başlayacaq.\nQoşulanlar:""", call.message.chat.id, call.message.message_id, reply_markup=markup)
     elif call.data == "cro_join":
         cursor.execute(f"SELECT players, playerNames FROM cro WHERE chatID={call.message.chat.id}")
         res = cursor.fetchone()
@@ -109,12 +110,8 @@ def reply(call):
             (json.dumps(players), json.dumps(playerNames), call.message.chat.id)
             )
             database.commit()
-            markup = quick_markup({
-            "Qosul": {"callback_data": "cro_join"},
-            "Cix": {"callback_data": "cro_leave"},
-            "Baslat": {"callback_data": "cro_start"}
-            })
-            bot.edit_message_text("Oyun bir azdan baslayacaq.\nQosulanlar: "+", ".join([f'<a href="tg://user?id={players[i]}">{playerNames[i]}</a>' for i in range(len(players))]), parse_mode="HTML", reply_markup=markup, message_id=call.message.message_id, chat_id=call.message.chat.id)
+            markup = quick_markup(user_options)
+            bot.edit_message_text("Oyun bir az sonra başlayacaq.\nQoşulanlar: "+", ".join([f'<a href="tg://user?id={players[i]}">{playerNames[i]}</a>' for i in range(len(players))]), parse_mode="HTML", reply_markup=markup, message_id=call.message.message_id, chat_id=call.message.chat.id)
     elif call.data == "cro_leave":
         cursor.execute(f"SELECT players, playerNames FROM cro WHERE chatID={call.message.chat.id}")
         res = cursor.fetchone()
@@ -129,12 +126,8 @@ def reply(call):
             (json.dumps(players), json.dumps(playerNames), call.message.chat.id)
             )
             database.commit()
-            markup = quick_markup({
-            "Qosul": {"callback_data": "cro_join"},
-            "Cix": {"callback_data": "cro_leave"},
-            "Baslat": {"callback_data": "cro_start"}
-            })
-            bot.edit_message_text(f"Oyun bir azdan baslayacaq.\nQosulanlar: "+", ".join([f'<a href="tg://user?id={players[i]}">{playerNames[i]}</a>' for i in range(len(players))]), parse_mode="HTML", reply_markup=markup, message_id=call.message.message_id, chat_id=call.message.chat.id)
+            markup = quick_markup(user_options)
+            bot.edit_message_text(f"Oyun bir az sonra başlayacaq.\nQoşulanlar: "+", ".join([f'<a href="tg://user?id={players[i]}">{playerNames[i]}</a>' for i in range(len(players))]), parse_mode="HTML", reply_markup=markup, message_id=call.message.message_id, chat_id=call.message.chat.id)
     elif call.data == "cro_start":
         if check_admin(call):
             cursor.execute("SELECT players, playerNames FROM cro WHERE chatID=?", (call.message.chat.id,))
@@ -144,10 +137,12 @@ def reply(call):
                 cursor.execute("UPDATE cro SET currentPlayer=?, currentWord=?", (players[rndPlayer], get_random_word()))
                 database.commit()
                 markup = quick_markup(yeni_soz)
-                bot.edit_message_text(f"Oyun basladi, {playerNames[rndPlayer]} sozu izah edir.", call.message.chat.id, call.message.message_id, reply_markup=markup)
-            else: bot.answer_callback_query(call.id, "Oyuna baslamaq ucun en azi 2 nefer olmalidir.", show_alert=True)
-        else: bot.answer_callback_query(call.id, "Admin deyilsen qaqas", show_alert=True)
+                bot.edit_message_text(f"Oyun başladı!", call.message.chat.id, call.message.message_id)
+                bot.send_message(call.message.chat.id, f'<a href="tg://user?id={players[rndPlayer]}">🎤 {playerNames[rndPlayer]}</a> yeni aparıcıdır! İzah edir:', reply_markup=markup, parse_mode="HTML")
+            else: bot.answer_callback_query(call.id, "❌ Oyuna başlamaq üçün ən azı 2 nəfər olmalıdır!", show_alert=True)
+        else: bot.answer_callback_query(call.id, "❌ Oyunu başlatmaq üçün admin olmalısınız!", show_alert=True)
     elif call.data == "change_player":
+        print("YOK")
         cursor.execute("SELECT players, playerNames, currentPlayer FROM cro WHERE chatID=?", (call.message.chat.id,))
         players, playerNames, currentPlayer = cursor.fetchone()
         players, playerNames = json.loads(players), json.loads(playerNames)
