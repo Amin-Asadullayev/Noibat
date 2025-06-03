@@ -44,7 +44,7 @@ bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    if message.chat.type=="group":
+    if message.chat.type in ["group", "supergroup"]:
         markup = quick_markup({
             "Crocodile": {"callback_data": "crocodile"}
         })
