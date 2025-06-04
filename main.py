@@ -45,10 +45,13 @@ bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     if message.chat.type in ["group", "supergroup"]:
-        markup = quick_markup({
-            "Crocodile": {"callback_data": "crocodile"}
-        })
-        bot.send_message(message.chat.id, "Oynamaq istədiyiniz oyunu seçin:", reply_markup=markup)
+        if bot.get_chat_member(message.chat.id, message.from_user.id).status in ['administrator', 'creator', 'owner']:
+            markup = quick_markup({
+                "Crocodile": {"callback_data": "crocodile"}
+            })
+            bot.send_message(message.chat.id, "Oynamaq istədiyiniz oyunu seçin:", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "❌ Yeni bir oyun başlatmaq üçün admin olmalısınız.")
     else:
         bot.send_message(message.chat.id, "Botdan istifadə etmək üçün qrupda olmalısınız")
 
